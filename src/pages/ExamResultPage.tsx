@@ -96,7 +96,7 @@ export default function ExamResultPage() {
         {/* Result Card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 animate-scaleIn">
           {/* Header */}
-          <div className="bg-gradient-to-br from-primary to-primary-light p-6 text-white text-center">
+          <div className="bg-linear-to-br from-primary to-primary-light p-6 text-white text-center">
             <div className="text-5xl mb-3">{message.emoji}</div>
             <h1 className="text-2xl font-black mb-2">{result.exam_title}</h1>
             <p className="text-white/70 text-sm">{result.student_name}</p>
@@ -168,7 +168,7 @@ export default function ExamResultPage() {
                   </div>
                   <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-1000 bg-gradient-to-l from-accent to-accent-light"
+                      className="h-full rounded-full transition-all duration-1000 bg-linear-to-l from-accent to-accent-light"
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -180,7 +180,7 @@ export default function ExamResultPage() {
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <button
                 onClick={handleDownloadPDF}
-                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-accent to-accent-light hover:from-accent-dark hover:to-accent text-white py-3 rounded-xl font-medium text-sm transition-all duration-300 shadow-lg shadow-accent/20 hover:shadow-accent/40"
+                className="flex-1 flex items-center justify-center gap-2 bg-linear-to-r from-accent to-accent-light hover:from-accent-dark hover:to-accent text-white py-3 rounded-xl font-medium text-sm transition-all duration-300 shadow-lg shadow-accent/20 hover:shadow-accent/40"
               >
                 <FileText className="w-4 h-4" />
                 تحميل PDF
@@ -239,7 +239,7 @@ export default function ExamResultPage() {
                           onClick={() => toggleQuestion(qId)}
                           className="w-full flex items-center gap-3 p-4 text-right"
                         >
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                             answer.is_correct ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                           }`}>
                             {index + 1}
@@ -248,9 +248,9 @@ export default function ExamResultPage() {
                             {answer.question}
                           </span>
                           {answer.is_correct ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
                           ) : (
-                            <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                            <XCircle className="w-5 h-5 text-red-500 shrink-0" />
                           )}
                         </button>
 
@@ -284,7 +284,7 @@ export default function ExamResultPage() {
 
                             {answer.explanation && (
                               <div className="mt-3 bg-blue-50 rounded-lg p-3 flex items-start gap-2">
-                                <Star className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                                <Star className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                                 <p className="text-xs text-blue-800">{answer.explanation}</p>
                               </div>
                             )}

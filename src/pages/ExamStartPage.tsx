@@ -1,14 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, ChevronLeft, Send, AlertTriangle, Loader2, X } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Send, AlertTriangle, Loader2, X, Download } from 'lucide-react';
 import { supabase, type Exam, type Question } from '../lib/supabase';
+import { getRandomItems, shuffleArray, shuffleOptions } from '../utils/randomHelpers';
+import { generateResultPDF } from '../utils/pdfGenerator';
+
+interface ProcessedQuestion extends Question {
+  shuffledOptions: { a: string; b: string; c: string; d: string };
+  actualCorrectAnswer: string;
+}
 
 export default function ExamStartPage() {
   const { examCode } = useParams<{ examCode: string }>();
   const navigate = useNavigate();
 
   const [exam, setExam] = useState<Exam | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<ProcessedQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(0);
@@ -40,7 +47,7 @@ export default function ExamStartPage() {
     setTimeLeft(parsedExam.duration_minutes * 60);
     startTimeRef.current = Date.now();
 
-    fetchQuestions(parsedExam.id);
+    fetchQuestions(parsedExam.id, parsedExam.questions_per_exam || parsedExam.total_questions);
 
     // Load saved answers
     const saved = localStorage.getItem(`exam_answers_${examCode}`);
@@ -81,10 +88,9 @@ export default function ExamStartPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exam, loading, timeLeft]);
 
-  const fetchQuestions = async (examId: string) => {
+  const fetchQuestions = async (examId: string, questionsToShow: number) => {
     try {
       const { data } = await supabase
         .from('questions')
@@ -93,7 +99,29 @@ export default function ExamStartPage() {
         .order('question_order', { ascending: true });
 
       if (data && data.length > 0) {
-        setQuestions(data);
+        // اختيار أسئلة عشوائية
+        const randomQuestions = getRandomItems(data, questionsToShow);
+        
+        // معالجة كل سؤال: خلط الخيارات وتخزين الإجابة الصحيحة الجديدة
+        const processedQuestions: ProcessedQuestion[] = randomQuestions.map(q => {
+          const { shuffled, newCorrectAnswer } = shuffleOptions(
+            {
+              a: q.option_a,
+              b: q.option_b,
+              c: q.option_c,
+              d: q.option_d,
+            },
+            q.correct_answer
+          );
+
+          return {
+            ...q,
+            shuffledOptions: shuffled,
+            actualCorrectAnswer: newCorrectAnswer,
+          };
+        });
+
+        setQuestions(processedQuestions);
       }
     } catch (err) {
       console.error('Error fetching questions:', err);
@@ -119,7 +147,7 @@ export default function ExamStartPage() {
     const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
 
     try {
-      // Calculate results client-side
+      // حساب النتائج
       let correct = 0;
       const detailedAnswers: Record<string, {
         question: string;
@@ -132,15 +160,15 @@ export default function ExamStartPage() {
 
       questions.forEach(q => {
         const studentAnswer = answers[q.id] || '';
-        const isCorrect = studentAnswer === q.correct_answer;
+        const isCorrect = studentAnswer === q.actualCorrectAnswer;
         if (isCorrect) correct++;
 
         detailedAnswers[q.id] = {
           question: q.question_text,
           student_answer: studentAnswer,
-          correct_answer: q.correct_answer,
+          correct_answer: q.actualCorrectAnswer,
           is_correct: isCorrect,
-          options: { a: q.option_a, b: q.option_b, c: q.option_c, d: q.option_d },
+          options: q.shuffledOptions,
           explanation: q.explanation || '',
         };
       });
@@ -169,9 +197,12 @@ export default function ExamStartPage() {
 
       if (error) throw error;
 
-      // Clear saved data
+      // مسح البيانات المحفوظة
       localStorage.removeItem(`exam_answers_${examCode}`);
       sessionStorage.setItem('examResult', JSON.stringify(data));
+
+      // تحميل PDF مباشرة
+      generateResultPDF(data);
 
       navigate(`/exams/${examCode}/result`);
     } catch (err) {
@@ -280,7 +311,7 @@ export default function ExamStartPage() {
                 {/* Options */}
                 <div className="space-y-3">
                   {(['a', 'b', 'c', 'd'] as const).map((opt) => {
-                    const optionText = currentQuestion[`option_${opt}`];
+                    const optionText = currentQuestion.shuffledOptions[opt];
                     const isSelected = answers[currentQuestion.id] === opt;
                     const labels = { a: 'أ', b: 'ب', c: 'ج', d: 'د' };
 
@@ -301,164 +332,133 @@ export default function ExamStartPage() {
                         }`}>
                           {labels[opt]}
                         </span>
-                        <span className={`text-sm font-medium flex-1 ${
-                          isSelected ? 'text-primary' : 'text-primary/70'
-                        }`}>
-                          {optionText}
-                        </span>
+                        <span className="flex-1 text-primary">{optionText}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              {/* Navigation Buttons */}
+              <div className="flex items-center justify-between gap-4 p-4 border-t border-gray-100 bg-gray-50">
                 <button
-                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                  onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
                   disabled={currentIndex === 0}
-                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-primary/60 hover:bg-white hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border-2 border-gray-200 text-primary font-medium disabled:opacity-30 hover:border-accent transition-colors"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronLeft className="w-5 h-5" />
                   السابق
                 </button>
 
-                {currentIndex === questions.length - 1 ? (
-                  <button
-                    onClick={() => setShowConfirm(true)}
-                    className="flex items-center gap-2 px-6 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-accent/20"
-                  >
-                    <Send className="w-4 h-4" />
-                    تسليم الامتحان
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setCurrentIndex(Math.min(questions.length - 1, currentIndex + 1))}
-                    className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-light transition-colors text-sm font-medium"
-                  >
-                    التالي
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="text-sm text-primary/60">
+                  {answeredCount} / {questions.length} مجاب عنها
+                </div>
+
+                <button
+                  onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                  disabled={currentIndex === questions.length - 1}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border-2 border-gray-200 text-primary font-medium disabled:opacity-30 hover:border-accent transition-colors"
+                >
+                  التالي
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Sidebar - Question Navigator */}
-          <div className="lg:w-64">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sticky top-24">
-              <h3 className="text-sm font-bold text-primary mb-3">الأسئلة</h3>
-              <div className="grid grid-cols-5 gap-2">
-                {questions.map((q, i) => {
-                  const isAnswered = !!answers[q.id];
-                  const isCurrent = i === currentIndex;
-
-                  return (
-                    <button
-                      key={q.id}
-                      onClick={() => setCurrentIndex(i)}
-                      className={`w-full aspect-square rounded-lg flex items-center justify-center text-sm font-bold transition-all ${
-                        isCurrent
-                          ? 'bg-primary text-white scale-110 shadow-md'
-                          : isAnswered
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 text-primary/50 hover:bg-gray-200'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 space-y-2 text-xs text-primary/60">
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-green-500"></span>
-                  <span>تمت الإجابة ({answeredCount})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-gray-100"></span>
-                  <span>لم يُجَب ({questions.length - answeredCount})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded bg-primary"></span>
-                  <span>السؤال الحالي</span>
-                </div>
-              </div>
-
+            {/* Submit Button */}
+            <div className="mt-4">
               <button
                 onClick={() => setShowConfirm(true)}
-                className="w-full mt-4 bg-accent hover:bg-accent-dark text-white py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                تسليم الامتحان
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Confirm Modal */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scaleIn">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-primary">تأكيد التسليم</h3>
-              <button onClick={() => setShowConfirm(false)} className="text-primary/40 hover:text-primary">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="bg-amber-50 rounded-xl p-4 mb-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-amber-800">هل أنت متأكد من تسليم الامتحان؟</p>
-                  <p className="text-sm text-amber-600 mt-1">
-                    أجبت على {answeredCount} من أصل {questions.length} سؤال
-                  </p>
-                  {answeredCount < questions.length && (
-                    <p className="text-sm text-red-500 mt-1 font-medium">
-                      ⚠️ يوجد {questions.length - answeredCount} سؤال بدون إجابة
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-primary py-3 rounded-xl font-medium transition-colors"
-              >
-                رجوع
-              </button>
-              <button
-                onClick={submitExam}
                 disabled={submitting}
-                className="flex-1 bg-accent hover:bg-accent-dark text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-accent hover:bg-accent-dark text-white py-4 rounded-xl text-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-accent/20 disabled:opacity-50"
               >
                 {submitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    جاري التسليم...
+                  </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
-                    تسليم
+                    تسليم الامتحان
+                    <Send className="w-5 h-5" />
                   </>
                 )}
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Submitting Overlay */}
-      {submitting && (
-        <div className="fixed inset-0 bg-primary/90 flex items-center justify-center z-50">
-          <div className="text-center text-white">
-            <Loader2 className="w-16 h-16 animate-spin mx-auto mb-4 text-accent" />
-            <h2 className="text-2xl font-bold mb-2">جاري تسليم الامتحان...</h2>
-            <p className="text-white/60">الرجاء الانتظار</p>
+          {/* Sidebar - Questions Navigator */}
+          <div className="w-full lg:w-64">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sticky top-24">
+              <h3 className="font-bold text-primary mb-4">الأسئلة</h3>
+              <div className="grid grid-cols-6 lg:grid-cols-6 gap-2 max-h-96 overflow-y-auto">
+                {questions.map((q, idx) => (
+                  <button
+                    key={q.id}
+                    onClick={() => setCurrentIndex(idx)}
+                    className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${
+                      idx === currentIndex
+                        ? 'bg-accent text-white shadow-lg'
+                        : answers[q.id]
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-100 text-primary/60 hover:bg-gray-200'
+                    }`}
+                    title={`السؤال ${idx + 1}`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full overflow-hidden animate-fadeIn">
+            <div className="bg-linear-to-l from-primary to-primary-light p-6 text-white">
+              <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
+              <h2 className="text-xl font-bold text-center">تأكيد التسليم</h2>
+            </div>
+
+            <div className="p-6">
+              <p className="text-primary/70 mb-4 text-center">
+                هل أنت متأكد من رغبتك في تسليم الامتحان؟
+              </p>
+              <p className="text-sm text-primary/50 mb-6 text-center">
+                {answeredCount} من {questions.length} سؤال مجاب عنه
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-200 text-primary font-bold hover:bg-gray-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={submitExam}
+                  disabled={submitting}
+                  className="flex-1 px-4 py-3 rounded-lg bg-accent text-white font-bold hover:bg-accent-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  تسليم الآن
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
         </div>
       )}

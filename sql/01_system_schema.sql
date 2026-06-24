@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS exams (
   grade_level VARCHAR(100),
   duration_minutes INTEGER NOT NULL,
   total_questions INTEGER NOT NULL,
+  questions_per_exam INTEGER,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );

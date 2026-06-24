@@ -14,6 +14,7 @@ export interface Exam {
   grade_level: string;
   duration_minutes: number;
   total_questions: number;
+  questions_per_exam?: number;
   is_active: boolean;
   created_at: string;
 }

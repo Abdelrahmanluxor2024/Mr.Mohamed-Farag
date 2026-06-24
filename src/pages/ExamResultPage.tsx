@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, Clock, Home, Phone, ChevronDown, ChevronUp, Download, Star, BookOpen } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, Home, Phone, ChevronDown, ChevronUp, Download, Star, BookOpen, FileText } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import type { StudentResult } from '../lib/supabase';
+import { generateResultPDF } from '../utils/pdfGenerator';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
@@ -46,6 +47,10 @@ export default function ExamResultPage() {
 
   const toggleQuestion = (qId: string) => {
     setExpandedQuestions(prev => ({ ...prev, [qId]: !prev[qId] }));
+  };
+
+  const handleDownloadPDF = () => {
+    generateResultPDF(result);
   };
 
   const getOptionLabel = (opt: string) => {
@@ -172,17 +177,24 @@ export default function ExamResultPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3 mb-8">
+            <div className="flex flex-col sm:flex-row gap-3 mb-8">
+              <button
+                onClick={handleDownloadPDF}
+                className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-accent to-accent-light hover:from-accent-dark hover:to-accent text-white py-3 rounded-xl font-medium text-sm transition-all duration-300 shadow-lg shadow-accent/20 hover:shadow-accent/40"
+              >
+                <FileText className="w-4 h-4" />
+                تحميل PDF
+              </button>
               <button
                 onClick={handleDownloadResult}
-                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white py-3 rounded-xl font-medium text-sm transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white py-3 rounded-xl font-medium text-sm transition-colors"
               >
                 <Download className="w-4 h-4" />
-                تحميل النتيجة
+                تحميل نص
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-primary py-3 rounded-xl font-medium text-sm transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-primary py-3 rounded-xl font-medium text-sm transition-colors"
               >
                 <Home className="w-4 h-4" />
                 الرئيسية
@@ -191,7 +203,7 @@ export default function ExamResultPage() {
                 href="https://wa.me/201017815143"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium text-sm transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium text-sm transition-colors"
               >
                 <Phone className="w-4 h-4" />
                 تواصل واتساب

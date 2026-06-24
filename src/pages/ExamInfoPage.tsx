@@ -12,6 +12,7 @@ export default function ExamInfoPage() {
   const [studentName, setStudentName] = useState('');
   const [studentPhone, setStudentPhone] = useState('');
   const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   useEffect(() => {
     fetchExam();
@@ -40,12 +41,37 @@ export default function ExamInfoPage() {
   };
 
   const handleStart = () => {
+    setNameError('');
+    setPhoneError('');
+
+    // Validate name - must be exactly 4 words
     if (!studentName.trim()) {
       setNameError('الرجاء إدخال الاسم الرباعي');
       return;
     }
-    if (studentName.trim().split(' ').length < 2) {
-      setNameError('الرجاء إدخال الاسم الرباعي كاملاً');
+
+    const nameWords = studentName.trim().split(/\s+/).filter(word => word.length > 0);
+    if (nameWords.length !== 4) {
+      setNameError('الاسم يجب أن يكون رباعياً (4 كلمات بالضبط)');
+      return;
+    }
+
+    // Validate phone - must be provided, 11 digits, and start with valid prefix
+    if (!studentPhone.trim()) {
+      setPhoneError('رقم الهاتف مطلوب');
+      return;
+    }
+
+    const phoneDigits = studentPhone.trim().replace(/\D/g, '');
+    if (phoneDigits.length !== 11) {
+      setPhoneError('رقم الهاتف يجب أن يكون 11 رقم بالضبط');
+      return;
+    }
+
+    const validPrefixes = ['010', '011', '012', '015'];
+    const phonePrefix = phoneDigits.substring(0, 3);
+    if (!validPrefixes.includes(phonePrefix)) {
+      setPhoneError('رقم الهاتف يجب أن يبدأ بـ 010 أو 011 أو 012 أو 015');
       return;
     }
 
@@ -75,7 +101,7 @@ export default function ExamInfoPage() {
         {/* Exam Info Card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 animate-fadeIn">
           {/* Header */}
-          <div className="bg-gradient-to-br from-primary to-primary-light p-6 text-white text-center">
+          <div className="bg-linear-to-br from-primary to-primary-light p-6 text-white text-center">
             <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-8 h-8 text-accent" />
             </div>
@@ -163,16 +189,24 @@ export default function ExamInfoPage() {
               <div>
                 <label className="block text-sm font-medium text-primary/70 mb-1">
                   <Phone className="w-4 h-4 inline ml-1" />
-                  رقم الهاتف <span className="text-primary/30">(اختياري)</span>
+                  رقم الهاتف <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   value={studentPhone}
-                  onChange={(e) => setStudentPhone(e.target.value)}
+                  onChange={(e) => {
+                    setStudentPhone(e.target.value);
+                    setPhoneError('');
+                  }}
                   placeholder="01XXXXXXXXX"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-accent focus:outline-none text-primary transition-colors"
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-colors focus:outline-none text-primary ${
+                    phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-accent'
+                  }`}
                   dir="ltr"
                 />
+                {phoneError && (
+                  <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                )}
               </div>
 
               <button

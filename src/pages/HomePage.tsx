@@ -55,8 +55,8 @@ export default function HomePage() {
           <div className="text-center">
             {/* Bismillah */}
             <div className="animate-fadeIn mb-8">
-              <p className="text-accent/90 text-xl md:text-2xl font-medium" style={{ fontFamily: "'Cairo', sans-serif" }}>
-                ﷽
+              <p className="text-accent/90 text-3xl md:text-5xl lg:text-6xl font-black leading-tight tracking-tight" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                بسم الله الرحمن الرحيم
               </p>
             </div>
 

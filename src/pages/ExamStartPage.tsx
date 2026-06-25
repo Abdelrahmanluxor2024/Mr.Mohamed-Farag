@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, ChevronLeft, Send, AlertTriangle, Loader2, X, Download } from 'lucide-react';
+import { Clock, ChevronRight, ChevronLeft, Send, AlertTriangle, Loader2, X } from 'lucide-react';
 import { supabase, type Exam, type Question } from '../lib/supabase';
-import { getRandomItems, shuffleArray, shuffleOptions } from '../utils/randomHelpers';
+import { getRandomItems, shuffleOptions } from '../utils/randomHelpers';
 import { generateResultPDF } from '../utils/pdfGenerator';
 
 interface ProcessedQuestion extends Question {

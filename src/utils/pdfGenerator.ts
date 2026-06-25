@@ -4,6 +4,7 @@
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { amiriFontBase64 } from './arabicFont';
 
 interface ExamResult {
   student_name: string;
@@ -48,30 +49,39 @@ export const generateResultPDF = (result: ExamResult): void => {
     format: 'a4',
   });
 
-  const pageWidth = doc.getPageWidth();
-  const pageHeight = doc.getPageHeight();
+  // --- Start Font Embedding ---
+  // You need to replace '[PLACEHOLDER_BASE64_FONT_STRING]' with the actual Base64 string of an Arabic font (e.g., Noto Naskh Arabic)
+  // You can convert a .ttf file to Base64 using online tools.
+  const arabicFontBase64 = amiriFontBase64;
+  doc.addFileToVFS('Amiri-Regular.ttf', arabicFontBase64);
+  doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+  doc.setFont('Amiri');
+  // --- End Font Embedding ---
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   let currentY = 20;
 
   // إعدادات الخط
-  const primaryColor = [41, 98, 255]; // الأزرق
-  const accentColor = [255, 107, 53]; // البرتقالي
-  const correctColor = [34, 197, 94]; // الأخضر
-  const wrongColor = [239, 68, 68]; // الأحمر
+  const primaryColor: [number, number, number] = [41, 98, 255]; // الأزرق
+  const accentColor: [number, number, number] = [255, 107, 53]; // البرتقالي
+  const correctColor: [number, number, number] = [34, 197, 94]; // الأخضر
+  const wrongColor: [number, number, number] = [239, 68, 68]; // الأحمر
 
   // العنوان الرئيسي
   doc.setFontSize(24);
   doc.setTextColor(...primaryColor);
-  doc.text('نتائج الامتحان', pageWidth / 2, currentY, { align: 'center' });
+  doc.text('نتائج الامتحان', pageWidth / 2, currentY, { align: 'center', dir: 'rtl' } as any);
   currentY += 15;
 
   // معلومات الطالب
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text(`الاسم: ${result.student_name}`, pageWidth - 20, currentY, { align: 'right' });
+  doc.text(`الاسم: ${result.student_name}`, pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 8;
-  doc.text(`رقم الهاتف: ${result.student_phone || 'لم يتم إدخاله'}`, pageWidth - 20, currentY, { align: 'right' });
+  doc.text(`رقم الهاتف: ${result.student_phone || 'لم يتم إدخاله'}`, pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 8;
-  doc.text(`الامتحان: ${result.exam_title}`, pageWidth - 20, currentY, { align: 'right' });
+  doc.text(`الامتحان: ${result.exam_title}`, pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 12;
 
   // خط فاصل
@@ -82,7 +92,7 @@ export const generateResultPDF = (result: ExamResult): void => {
   // ملخص النتائج
   doc.setFontSize(14);
   doc.setTextColor(...accentColor);
-  doc.text('ملخص النتائج', pageWidth - 20, currentY, { align: 'right' });
+  doc.text('ملخص النتائج', pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 10;
 
   // جدول الملخص
@@ -109,16 +119,21 @@ export const generateResultPDF = (result: ExamResult): void => {
     startY: currentY,
     margin: { left: 20, right: 20 },
     theme: 'grid',
-    headerStyles: {
+    styles: { font: 'Arial', direction: 'rtl' },
+    headStyles: {
       fillColor: primaryColor,
       textColor: [255, 255, 255],
       fontSize: 11,
       fontStyle: 'bold',
       halign: 'center',
+      font: 'Arial', 
+      direction: 'rtl'
     },
     bodyStyles: {
       fontSize: 11,
       halign: 'center',
+      font: 'Arial',
+      direction: 'rtl'
     },
     alternateRowStyles: {
       fillColor: [240, 248, 255],
@@ -130,9 +145,9 @@ export const generateResultPDF = (result: ExamResult): void => {
   // المعلومات الإضافية
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text(`الوقت المستغرق: ${formatTime(result.time_taken_seconds)}`, pageWidth - 20, currentY, { align: 'right' });
+  doc.text(`الوقت المستغرق: ${formatTime(result.time_taken_seconds)}`, pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 8;
-  doc.text(`تاريخ الامتحان: ${new Date().toLocaleDateString('ar-EG')}`, pageWidth - 20, currentY, { align: 'right' });
+  doc.text(`تاريخ الامتحان: ${new Date().toLocaleDateString('ar-EG')}`, pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 12;
 
   // خط فاصل
@@ -143,7 +158,7 @@ export const generateResultPDF = (result: ExamResult): void => {
   // تفاصيل الإجابات
   doc.setFontSize(14);
   doc.setTextColor(...accentColor);
-  doc.text('تفاصيل الإجابات', pageWidth - 20, currentY, { align: 'right' });
+  doc.text('تفاصيل الإجابات', pageWidth - 20, currentY, { align: 'right', dir: 'rtl' } as any);
   currentY += 10;
 
   // عرض كل سؤال
@@ -178,7 +193,7 @@ export const generateResultPDF = (result: ExamResult): void => {
       const isStudentAnswer = key === answer.student_answer;
       const isCorrectAnswer = key === answer.correct_answer;
 
-      let optionColor = [0, 0, 0];
+      let optionColor: [number, number, number] = [0, 0, 0];
       let prefix = '';
 
       if (isCorrectAnswer && isStudentAnswer) {
